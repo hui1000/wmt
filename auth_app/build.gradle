@@ -1,0 +1,148 @@
+import groovy.sql.Sql
+
+apply plugin: 'war'
+apply plugin: 'tomcat'
+apply plugin: 'java'
+apply plugin: 'propdeps'
+apply plugin: 'propdeps-maven'
+apply plugin: 'propdeps-idea'
+apply plugin: 'propdeps-eclipse'
+apply plugin: 'eclipse'
+apply plugin: 'idea'
+apply plugin:'application'
+
+buildscript {
+  repositories {
+    mavenCentral()
+    maven {
+      url "http://download.java.net/maven/2"
+    }
+    maven { url 'http://repo.spring.io/plugins-release' }
+    maven { url "http://repo.spring.io/libs-release" }
+  }
+
+  dependencies {
+    classpath 'org.gradle.api.plugins:gradle-tomcat-plugin:0.9.9'
+    classpath 'org.springframework.build.gradle:propdeps-plugin:0.0.7'
+    classpath 'mysql:mysql-connector-java:5.1.16'
+  }
+}
+
+repositories {
+  mavenCentral()
+  maven { url 'http://repo.spring.io/milestone/'}
+}
+
+configurations {
+    driver
+}
+
+dependencies {
+    def tomcatVersion = '7.0.42'
+    tomcat "org.apache.tomcat.embed:tomcat-embed-core:${tomcatVersion}",
+            "org.apache.tomcat.embed:tomcat-embed-logging-juli:${tomcatVersion}"
+    tomcat("org.apache.tomcat.embed:tomcat-embed-jasper:${tomcatVersion}") {
+      exclude group: 'org.eclipse.jdt.core.compiler', module: 'ecj'
+    }
+
+    compile 'org.springframework:spring-core:3.2.3.RELEASE'
+    compile 'org.springframework:spring-webmvc:3.2.3.RELEASE'
+    compile 'com.jayway.jsonpath:json-path:0.8.1'
+    // {!begin hateoas}
+    compile 'org.springframework.hateoas:spring-hateoas:0.7.0.RELEASE'
+    // {!end hateoas}
+
+    compile 'org.springframework.security:spring-security-web:3.2.0.M2'
+    compile 'org.springframework.security:spring-security-core:3.2.0.M2'
+    compile 'org.springframework.security:spring-security-config:3.2.0.M2'
+    compile 'org.springframework.boot:spring-boot-starter-data-jpa:1.1.4.RELEASE'
+    compile 'org.springframework.data:spring-data-jpa:1.6.4.RELEASE'
+    compile 'org.hibernate.javax.persistence:hibernate-jpa-2.0-api:1.0.1.Final'
+    compile 'org.hibernate:hibernate-entitymanager:4.1.7.Final'
+
+    compile files('libs/commons-codec-1.9.jar')
+
+    compile 'org.slf4j:slf4j-api:1.7.5'
+    runtime 'org.slf4j:slf4j-jdk14:1.7.5'
+    runtime 'com.fasterxml.jackson.core:jackson-core:2.2.2'
+    runtime 'com.fasterxml.jackson.core:jackson-databind:2.2.2'
+    runtime 'javax.xml.bind:jaxb-api:2.2.9'
+    runtime group: 'org.apache.logging.log4j', name: 'log4j-api', version: '2.0.2'
+    runtime group: 'org.apache.logging.log4j', name: 'log4j-core', version: '2.0.2'
+    runtime 'mysql:mysql-connector-java:5.1.6'
+    provided 'javax.servlet:javax.servlet-api:3.0.1'
+
+    testCompile 'com.jayway.jsonpath:json-path-assert:0.8.1'
+    testCompile 'org.springframework:spring-test:3.2.3.RELEASE'
+    testCompile 'junit:junit:4.+'
+    testCompile "org.mockito:mockito-all:1.9.5"
+
+    driver group: 'mysql', name: 'mysql-connector-java', version: '5.1.16'
+}
+tomcatRunWar {
+    httpPort = 8003 
+    tomcatRunWar.stopPort = 8013
+}
+
+task wrapper(type: Wrapper) {
+    gradleVersion = '2.0'
+}
+
+sourceSets {
+    main {
+        java {
+            srcDir 'src/main/java,src/main/resources'
+        }
+        resources {
+            srcDir 'src/main/resources'
+        }
+
+        println "sourceSets=" + sourceSets
+        println "output.classesDir=" + output.classesDir + " output.resourcesDir=" + output.resourcesDir
+    }
+}
+sourceSets.all {
+    println "sourceSets.all=" + name
+}
+
+
+task createDb << {
+   // ant.sql(classpath: configurations.sql.asPath, ...)
+
+
+    def props = [user: 'user1', password: 'user1', allowMultiQueries: 'true'] as Properties
+    def url = 'jdbc:mysql://mysqlhost:3306/'
+    def driver = 'com.mysql.jdbc.Driver'
+    def driverClass = Class.forName(driver) 
+    def sql = Sql.newInstance(url, props, driver)
+
+    sql.eachRow('CREATE DATABASE wmt DEFAULT CHARACTER SET utf8     DEFAULT COLLATE utf8_general_ci;') { row ->
+        println row[0]
+    }
+}
+
+test {
+    afterTest { desc, result -> 
+        println "Executing test ${desc.name} [${desc.className}] with result: ${result.resultType}"
+    }
+
+    //makes the standard streams (err and out) visible at console when running tests
+    testLogging.showStandardStreams = true
+}
+
+// ./gradlew loadSeed
+task loadSeed(type:JavaExec) {
+   main = 'com.walmart.util.SimpleSeed'
+   classpath = sourceSets.main.runtimeClasspath
+}
+war {
+    webInf{
+        from('../items_app/src/main/java') {
+            include '*.properties'
+            include '*.xml'
+            into('classes/')
+        }
+    }
+}
+
+tomcatRunWar.contextPath = ''

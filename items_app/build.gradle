@@ -1,0 +1,207 @@
+import groovy.sql.Sql
+
+apply plugin: 'war'
+apply plugin: 'tomcat'
+apply plugin: 'java'
+apply plugin: 'propdeps'
+apply plugin: 'propdeps-maven'
+apply plugin: 'propdeps-idea'
+apply plugin: 'propdeps-eclipse'
+apply plugin: 'eclipse'
+apply plugin: 'idea'
+apply plugin:'application'
+
+Properties appProps = new Properties()
+appProps.load(new FileInputStream("src/main/java/app.properties"))
+println "port=" + appProps['port']
+
+buildscript {
+  repositories {
+    mavenCentral()
+    maven {
+      url "http://download.java.net/maven/2"
+    }
+    maven { url 'http://repo.spring.io/plugins-release' }
+    maven { url "http://repo.spring.io/libs-release" }
+  }
+
+  dependencies {
+    classpath 'org.gradle.api.plugins:gradle-tomcat-plugin:0.9.9'
+    classpath 'org.springframework.build.gradle:propdeps-plugin:0.0.7'
+    classpath 'mysql:mysql-connector-java:5.1.16'
+  }
+}
+
+repositories {
+  mavenCentral()
+  maven { url 'http://repo.spring.io/milestone/'}
+}
+
+configurations {
+    driver
+}
+
+dependencies {
+    def tomcatVersion = '7.0.42'
+    tomcat "org.apache.tomcat.embed:tomcat-embed-core:${tomcatVersion}",
+            "org.apache.tomcat.embed:tomcat-embed-logging-juli:${tomcatVersion}"
+    tomcat("org.apache.tomcat.embed:tomcat-embed-jasper:${tomcatVersion}") {
+      exclude group: 'org.eclipse.jdt.core.compiler', module: 'ecj'
+    }
+
+    compile 'org.springframework:spring-core:3.2.3.RELEASE'
+    compile 'org.springframework:spring-webmvc:3.2.3.RELEASE'
+    compile 'com.jayway.jsonpath:json-path:0.8.1'
+    // {!begin hateoas}
+    compile 'org.springframework.hateoas:spring-hateoas:0.7.0.RELEASE'
+    // {!end hateoas}
+
+    compile 'org.springframework.security:spring-security-web:3.2.0.M2'
+    compile 'org.springframework.security:spring-security-core:3.2.0.M2'
+    compile 'org.springframework.security:spring-security-config:3.2.0.M2'
+    compile 'org.springframework.boot:spring-boot-starter-data-jpa:1.1.4.RELEASE'
+    compile 'org.springframework.data:spring-data-jpa:1.6.4.RELEASE'
+    compile 'org.hibernate.javax.persistence:hibernate-jpa-2.0-api:1.0.1.Final'
+    compile 'org.hibernate:hibernate-entitymanager:4.1.7.Final'
+
+    compile "org.hsqldb:hsqldb:2.3.0"
+
+    compile 'org.slf4j:slf4j-api:1.7.5'
+    runtime 'org.slf4j:slf4j-jdk14:1.7.5'
+    runtime 'com.fasterxml.jackson.core:jackson-core:2.2.2'
+    runtime 'com.fasterxml.jackson.core:jackson-databind:2.2.2'
+    runtime 'javax.xml.bind:jaxb-api:2.2.9'
+    runtime group: 'org.apache.logging.log4j', name: 'log4j-api', version: '2.0.2'
+    runtime group: 'org.apache.logging.log4j', name: 'log4j-core', version: '2.0.2'
+    runtime 'mysql:mysql-connector-java:5.1.6'
+    provided 'javax.servlet:javax.servlet-api:3.0.1'
+
+    testCompile 'com.jayway.jsonpath:json-path-assert:0.8.1'
+    testCompile 'org.springframework:spring-test:3.2.3.RELEASE'
+    testCompile 'junit:junit:4.+'
+    testCompile "org.mockito:mockito-all:1.9.5"
+
+    driver group: 'mysql', name: 'mysql-connector-java', version: '5.1.16'
+}
+tomcatRunWar {
+    httpPort = 7340 
+}
+
+task wrapper(type: Wrapper) {
+    gradleVersion = '2.0'
+}
+
+sourceSets {
+    main {
+        java {
+            srcDir 'src/main/java,src/main/resources'
+        }
+        resources {
+            srcDir 'src/main/resources'
+        }
+
+        println "sourceSets=" + sourceSets
+        println "output.classesDir=" + output.classesDir + " output.resourcesDir=" + output.resourcesDir
+    }
+}
+sourceSets.all {
+    println "sourceSets.all=" + name
+}
+
+URLClassLoader loader = GroovyObject.class.classLoader
+configurations.driver.each {File file ->
+        loader.addURL(file.toURL())
+}
+
+def props = [user: appProps['db_user'], password: appProps['db_password'] , allowMultiQueries: 'true'] as Properties
+def db_url_no_db = appProps['db_url_no_db'] 
+def db_url = appProps['db_url'] 
+def db_driver = appProps['db_driver'] 
+def db_name = appProps['db_name'] 
+def driverClass = Class.forName(db_driver) 
+
+task createDb << {
+
+    def sql = Sql.newInstance(db_url_no_db, props, db_driver)
+    sql.executeUpdate('CREATE DATABASE IF NOT EXISTS ' + db_name + ' DEFAULT CHARACTER SET utf8     DEFAULT COLLATE utf8_general_ci;') 
+}
+
+task seedData << {
+
+    def sql = Sql.newInstance(db_url, props, db_driver)
+    sql.executeUpdate(" CREATE TABLE if not exists `User` ( `id` bigint(20) NOT NULL AUTO_INCREMENT, `password` varchar(255) DEFAULT NULL, `userName` varchar(255) DEFAULT NULL, `authToken` varchar(255) DEFAULT NULL, `authTokenCreatedAt` datetime DEFAULT NULL, PRIMARY KEY (`id`)) ENGINE=InnoDB DEFAULT CHARSET=utf8 ")
+
+    sql.executeUpdate("CREATE TABLE if not exists `Item` ( `id` bigint(20) NOT NULL AUTO_INCREMENT, `description` varchar(255) DEFAULT NULL, `locale` varchar(255) DEFAULT NULL, `price` double DEFAULT NULL, PRIMARY KEY (`id`)) ENGINE=InnoDB DEFAULT CHARSET=utf8 ")
+    sql.executeUpdate("CREATE TABLE if not exists `Store` ( `id` bigint(20) NOT NULL AUTO_INCREMENT, `name` varchar(255) DEFAULT NULL, PRIMARY KEY (`id`)) ENGINE=InnoDB DEFAULT CHARSET=utf8 ")
+
+    sql.executeUpdate("CREATE TABLE if not exists `Item_Store` ( `items_id` bigint(20) NOT NULL, `stores_id` bigint(20) NOT NULL, KEY `FK_j1qcsy7xg19hitwxdyprhqqwl` (`stores_id`), KEY `FK_lq5kemak9g4ttc8c6qkwpsvbh` (`items_id`), CONSTRAINT `FK_lq5kemak9g4ttc8c6qkwpsvbh` FOREIGN KEY (`items_id`) REFERENCES `Item` (`id`), CONSTRAINT `FK_j1qcsy7xg19hitwxdyprhqqwl` FOREIGN KEY (`stores_id`) REFERENCES `Store` (`id`)) ENGINE=InnoDB DEFAULT CHARSET=utf8 ")
+
+    def userRows = sql.rows("select count(*) from User")
+
+    def numOfUsers = userRows[0][0]
+    if ( numOfUsers == 0) {
+        println("create some User data")
+        sql.executeUpdate(" insert into User (id, userName, password) values (1, " +
+                "'" + appProps['sample_app_user_name'] + "'," + 
+                "'" + appProps['sample_app_user_password_crypted'] + "'" + 
+                ") ")
+
+    } else {
+        println("already has " + numOfUsers + " Users, no need to seed user")
+    }
+
+    def itemRows = sql.rows("select count(*) from Item")
+
+    def numOfItems = itemRows[0][0]
+    if ( numOfItems == 0) {
+        println("create some Item data")
+        sql.executeUpdate(" insert into Item (id, description ) values (1, " +
+                "'Item 1'" + 
+                ") ")
+
+    } else {
+        println("already has " + numOfItems + " Items, no need to seed item")
+    }
+
+    def storeRows = sql.rows("select count(*) from Store")
+    def numOfStores = storeRows[0][0]
+    if ( numOfStores == 0) {
+        println("create some Store data")
+        for (int i = 1; i <= 10; i++) {
+            sql.executeUpdate("insert into Store (id, name) values (" + i  + ", 'Store " + i + "')")
+        }
+    } else {
+        println("already has " + numOfStores+ " Stores, no need to seed Store")
+    }
+}
+
+test {
+    afterTest { desc, result -> 
+        println "Executing test ${desc.name} [${desc.className}] with result: ${result.resultType}"
+    }
+
+    //makes the standard streams (err and out) visible at console when running tests
+    testLogging.showStandardStreams = true
+}
+
+// ./gradlew loadSeed
+task loadSeed(type:JavaExec) {
+   main = 'com.walmart.util.SimpleSeed'
+   classpath = sourceSets.main.runtimeClasspath
+}
+
+test {  
+    classpath = project.sourceSets.test.runtimeClasspath + files("${projectDir}/src/main/java")  
+}
+war {
+    webInf{
+        from('src/main/java') {
+            include '*.properties'
+            include '*.xml'
+            into('classes/')
+        }
+    }
+}
+
+
+tomcatRunWar.contextPath = ''

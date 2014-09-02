@@ -1,0 +1,33 @@
+package com.walmart.core.domain.fixtures;
+
+import com.walmart.core.domain.Item;
+
+
+import java.util.Collections;
+import java.util.Date;
+
+public class ItemsFixtures {
+
+  public static final String YUMMY_ITEM = "yummy_core";
+
+  public static Item standardItem(int id) {
+    Item item = new Item();
+    item.setId(Long.valueOf(id));
+    item.setDescription("Standard Item " + id);
+    return item;
+  }
+
+  public static String standardItemJSON(int id) {
+      String request  = "{\"id\":\"" + id + "\", \"description:\":\"Standard Item " + id +"\"}";
+      System.out.println("--- request is "+ request);
+      return request;
+  }
+
+  /*
+   * Twin of the above, to improve readability
+   */
+  public static ItemDetails standardItemDetails() {
+    return standardItem().toItemDetails();
+  }
+
+}

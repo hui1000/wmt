@@ -1,0 +1,42 @@
+package com.walmart.rest.controller.fixture;
+
+
+import com.walmart.rest.domain.RestItem;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.UUID;
+
+//TODOCUMENT.  Use of test data fixture classes is considered good practice.
+/*
+ The majority of tests aren't testing data edge cases, they are testing logical flows and
+ what happens to a generic set of data.  For these, use a small, standardised set of fixtures.
+
+ */
+public class RestDataFixture {
+  public static final String YUMMY_ITEM = "yummy1";
+
+  public static Item standardItem() {
+    Item item = new Item();
+
+    item.setItems(Collections.singletonMap(YUMMY_ITEM, 12));
+
+    return item;
+  }
+
+  public static ItemDetails customKeyItemDetails(UUID key) {
+    ItemDetails itemdetails = new ItemDetails(key);
+
+    itemdetails.setItemItems(Collections.singletonMap(YUMMY_ITEM, 12));
+
+    return itemdetails;
+  }
+  public static ItemDetails standardItemDetails() {
+    return customKeyItemDetails(UUID.randomUUID());
+  }
+
+  public static String standardItemJSON() {
+    return "{ \"items\": [{ \"description\": \"football\", \"locale\": \"CN\" } ,{\"description\": \"football\", \"locale\": \"CN\"}]}";
+  }
+}

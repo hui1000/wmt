@@ -1,0 +1,70 @@
+Design Considerations:
+
+1. REST Web Services: It will support JSON request and JSON response only. 
+
+The two applications (items_app and auth_app)  are using Spring-MVC, JPA and Hibernate framework. Created the domain layer, Controller layer, Services Layer and Repository Layer in the application.  
+
+items_app: 
+GET http://localhost:7340/services/items/$id - return the item info for this item_id.
+if the item_id does not exist in DB, return 404 NOT FOUND for the response
+
+POST http://localhost:7340/services/items/$id - will take the body as a list of JSON item Objects and do the create or update. It takes a list with one item or multiple items. 
+If the valid item id is in the body, it will update the item. 
+If the item id is invalid, it will return error messages saying INVALID_ITEM_ID.
+If there's no item id specified, it will create the item in the DB. 
+
+All the POST status will be OK, but it will have errorMessages in the response if we have some errors processing request. 
+
+auth_app:
+POST http://localhost:8003/services/security/authToken -- will take the username and password as the request body, then returns the authToken in Json to the user.  
+
+
+2. DB Persistence Design:
+The DB perisistence is using MySQL DB at backend and JPA/Hibernate at the application side. Other DB could be used as well due to the JPA abstraction just by replacing datasource and DB driver. 
+
+There will be three tables in items_app:
+Item table: contains the item_id (auto generated) , locale(String), description(String), Price (double).
+Store table: This will be a preloaded data table since we don't have any endpoint for the store data in this project. It has the store_id and store_name columns. 
+Item_Store table: This will be the join table with many-to-many relationship. By this table we are able to pull the inventory store list for this item. 
+
+one table in auth_app:
+User table: contains id, username, hashedPassword, authToken, authTokenCreatedAt. 
+
+
+3. Security Design:
+Since auth_app and items_app are running on the same host, they share the same DB access and jdbc token service is used here. The auth_app will go to the user table to verify the authtoken for this userid. 
+If the authtoken doesn't match, it will return UNAUTHORIZED 401 error to the client. If the authtoken matches, it will proceed to do the get/post operation. 
+
+If time permitted, Spring Security framework can be applied here. 
+
+3. Build and Run the applications: 
+The build environment is using gradle. The two applications will be running on port 7340 and 8003 separately. 
+
+Run the application:
+a. Set up DB: 
+Please make sure to download Mysql server : 
+Startup MysqlDB on local, use root to login, create the following user in DB: 
+GRANT ALL PRIVILEGES ON *.* TO user1@'%' IDENTIFIED BY 'user1' WITH GRANT OPTION; 
+GRANT ALL PRIVILEGES ON *.* TO user1@localhost IDENTIFIED BY 'user1' WITH GRANT OPTION;
+
+in terminal, this will create the tables and some initial data :
+cd items_app
+./gradlew createDb 
+./gradlew seedData
+
+b. Start up the web applications : 
+one window: cd items_app;    ./gradlew tomcatRunWar
+the other window: cd auth_app;  ./gradlew tomcatRunWar
+
+c. now we can run some tests using my automation test suites. I have two test files, one is for GETItem service, the other for Post Item services. 
+
+Run the Post test cases:
+cd items_app;
+./gradlew test --tests=com.walmart.rest.functional.PostItemTests
+
+Run the GET test cases:
+cd items_app;
+./gradlew test --tests=com.walmart.rest.functional.GetItemTests
+
+Run all the test cases:
+./gradlew test 

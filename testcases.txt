@@ -1,0 +1,53 @@
+GET Test cases:
+
+Junit Automated P1: 
+P1. Use a valid item ID to get the item and do the assertions on all the fields including associated store lists. 
+P1. Use a non-exist item ID and it should return 404 NOT_FOUND.
+P1. Use a get request missing auth headers to check the response. (security feature)  
+P1: Use a get request with a wrong authtoken to check the authentication. 
+
+P2: 
+P2. use a malformed alphabetical itemID to check the response. it returns 400 BAD request.
+P2. use a negative number to check the response. it returns not found
+P2. use the range limit numbers for Long to see if it will overflow. 
+P2: put no item_id in the URL and check the behavior. 
+P2: Use an expired token to see if it can pass the authentication.
+P2: Performance Testing: Send 5000 requests at the same time and check the performance. this may be done use some performance testing tool. 
+
+
+Post Test cases:
+
+Junit Automatd P1 testcases:
+P1. Update an existing item if passing a valid existing item id. Check all the fields are updated.with assertion. 
+P1: Update a non-existing item by passing a invalid item_id. It should return error messages saying INVALID_ITEM_ID.
+P1. Update an itemList if passing a valid existing item id list. Check all the fields are updated for all the items with assertion. 
+P1. Create a new item if passing a JSON list with one item without item_id, check that the object returned should have a new item_id assigned and do the assertions. 
+P1. Create multiple items if passing JSON list with multiple items without item_id, check all the items are created and do the assertions.
+P1. Use a get request missing auth headers to check the response. (security feature)  
+P1: Use a get request with a wrong authtoken to check the authentication. 
+
+
+P2 testcases: 
+P2: Post with extra field in the request, check the response. 
+P2: Invalid JSON Format in post request.
+P2: Empty body in the post request. 
+P2: invalid_store id to check the foreign key constraints and the request should fail.. 
+P2: use wrong format for every field and check the response. 
+P2: Use expired token and check the response  
+
+P2: Transaction testing: Concurrent update result by POST many requests at the same time.  
+P2: Load Testing: Post 1 million items in one request and check for the errors. 
+P2: Performance Testing: Post 5000 requests at the same time and check the performance. this may be done use some performance testing tool. 
+P2: Memory Testing: check memory during the load, try to see if there's any memory leak. 
+
+
+Security test cases:
+Since the authtoken is a separate service, I didn't automate the test cases. 
+Here are detailed security test cases:
+1. Missing UserName in the request, expect NO_USERNAME in the response. 
+2. Missing Password in the request, expect NO_PASSWORD in the response. 
+3. UserName is not found in the DB, expect USER_NOT_FOUND in the response.
+4. Password is wrong for the user, expect WRONG_PASSWORD in the response. 
+5. Correct username/password combination and expect the auth token to be returned.. 
+
+There are many combination for the invalid field tests, so I will not elaborate here. 
